@@ -3,9 +3,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { saveSajuResult, saveSajuToSessionStorage } from '../services/sajuService';
+import { toast } from '@/hooks/use-toast';
 
 const SajuInput = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     birthYear: new Date().getFullYear() - 30,
     birthMonth: 1,
@@ -24,11 +29,40 @@ const SajuInput = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Save to session storage for result page to retrieve
-    sessionStorage.setItem('sajuFormData', JSON.stringify(formData));
-    navigate('/saju-result');
+    setLoading(true);
+
+    try {
+      if (user) {
+        // If user is authenticated, save to Supabase
+        const sajuId = await saveSajuResult(formData);
+        
+        if (sajuId) {
+          // Navigate to result page with the ID
+          navigate(`/saju-result?id=${sajuId}`);
+        } else {
+          toast({
+            title: '오류',
+            description: '사주 데이터를 저장하는 중 문제가 발생했습니다.',
+            variant: 'destructive',
+          });
+        }
+      } else {
+        // If not authenticated, save to session storage
+        saveSajuToSessionStorage(formData);
+        navigate('/saju-result');
+      }
+    } catch (error) {
+      console.error('Error submitting saju data:', error);
+      toast({
+        title: '오류',
+        description: '사주 데이터를 처리하는 중 문제가 발생했습니다.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Generate year options
@@ -205,12 +239,28 @@ const SajuInput = () => {
             </div>
             
             <div className="pt-4">
-              <button type="submit" className="w-full primary-button">
-                사주 해석하기 <ArrowRight size={18} />
+              <button 
+                type="submit" 
+                className="w-full primary-button"
+                disabled={loading}
+              >
+                {loading ? '처리 중...' : '사주 해석하기'} {!loading && <ArrowRight size={18} />}
               </button>
             </div>
           </form>
         </div>
+        
+        {!user && (
+          <div className="text-center mt-4 p-4 bg-lavender/20 rounded-lg">
+            <p className="text-gray-700 mb-2">로그인하시면 사주 결과를 저장하고 나중에 다시 볼 수 있습니다.</p>
+            <button 
+              onClick={() => navigate('/auth')} 
+              className="secondary-button"
+            >
+              로그인 또는 회원가입
+            </button>
+          </div>
+        )}
       </div>
     </Layout>
   );

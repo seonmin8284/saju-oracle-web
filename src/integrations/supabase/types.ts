@@ -9,7 +9,264 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      amulets: {
+        Row: {
+          downloaded_at: string | null
+          generated_at: string
+          id: string
+          image_url: string | null
+          payment_status: string | null
+          price: number | null
+          saju_id: string | null
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          downloaded_at?: string | null
+          generated_at?: string
+          id?: string
+          image_url?: string | null
+          payment_status?: string | null
+          price?: number | null
+          saju_id?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          downloaded_at?: string | null
+          generated_at?: string
+          id?: string
+          image_url?: string | null
+          payment_status?: string | null
+          price?: number | null
+          saju_id?: string | null
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amulets_saju_id_fkey"
+            columns: ["saju_id"]
+            isOneToOne: false
+            referencedRelation: "saju_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          bot_response: string | null
+          context_type: string | null
+          conversation_id: string | null
+          id: string
+          timestamp: string
+          user_id: string | null
+          user_input: string | null
+        }
+        Insert: {
+          bot_response?: string | null
+          context_type?: string | null
+          conversation_id?: string | null
+          id?: string
+          timestamp?: string
+          user_id?: string | null
+          user_input?: string | null
+        }
+        Update: {
+          bot_response?: string | null
+          context_type?: string | null
+          conversation_id?: string | null
+          id?: string
+          timestamp?: string
+          user_id?: string | null
+          user_input?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultations: {
+        Row: {
+          consultant_id: string | null
+          created_at: string
+          datetime: string | null
+          id: string
+          payment_status: string | null
+          price: number | null
+          status: string | null
+          user_id: string | null
+          zoom_link: string | null
+        }
+        Insert: {
+          consultant_id?: string | null
+          created_at?: string
+          datetime?: string | null
+          id?: string
+          payment_status?: string | null
+          price?: number | null
+          status?: string | null
+          user_id?: string | null
+          zoom_link?: string | null
+        }
+        Update: {
+          consultant_id?: string | null
+          created_at?: string
+          datetime?: string | null
+          id?: string
+          payment_status?: string | null
+          price?: number | null
+          status?: string | null
+          user_id?: string | null
+          zoom_link?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          birth_date: string | null
+          birth_time: string | null
+          created_at: string
+          email: string | null
+          gender: string | null
+          id: string
+          language: string | null
+          membership_type: string | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          birth_time?: string | null
+          created_at?: string
+          email?: string | null
+          gender?: string | null
+          id: string
+          language?: string | null
+          membership_type?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          birth_time?: string | null
+          created_at?: string
+          email?: string | null
+          gender?: string | null
+          id?: string
+          language?: string | null
+          membership_type?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          generated_at: string
+          id: string
+          payment_status: string | null
+          pdf_url: string | null
+          price: number | null
+          saju_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          generated_at?: string
+          id?: string
+          payment_status?: string | null
+          pdf_url?: string | null
+          price?: number | null
+          saju_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          generated_at?: string
+          id?: string
+          payment_status?: string | null
+          pdf_url?: string | null
+          price?: number | null
+          saju_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_saju_id_fkey"
+            columns: ["saju_id"]
+            isOneToOne: false
+            referencedRelation: "saju_results"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saju_results: {
+        Row: {
+          birth_day: number
+          birth_hour: number | null
+          birth_minute: number | null
+          birth_month: number
+          birth_year: number
+          birthplace: string | null
+          date_generated: string
+          gender: string | null
+          id: string
+          parsed_result: Json | null
+          raw_data: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          birth_day: number
+          birth_hour?: number | null
+          birth_minute?: number | null
+          birth_month: number
+          birth_year: number
+          birthplace?: string | null
+          date_generated?: string
+          gender?: string | null
+          id?: string
+          parsed_result?: Json | null
+          raw_data?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          birth_day?: number
+          birth_hour?: number | null
+          birth_minute?: number | null
+          birth_month?: number
+          birth_year?: number
+          birthplace?: string | null
+          date_generated?: string
+          gender?: string | null
+          id?: string
+          parsed_result?: Json | null
+          raw_data?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
