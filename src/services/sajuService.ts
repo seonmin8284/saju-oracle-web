@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 type SajuFormData = {
   birthYear: number;
@@ -110,21 +111,28 @@ export const getSajuResult = async (id: string): Promise<SajuResult | null> => {
       return null;
     }
 
-    // Fix: Properly cast and validate the parsed_result before returning
-    if (!data.parsed_result || typeof data.parsed_result !== 'object') {
+    // Fix: Properly check and type the parsed_result
+    if (!data.parsed_result) {
       console.error('Invalid saju result data structure');
       return null;
     }
 
-    // Create a new object that conforms to SajuResult type
+    // Cast the parsed_result to an object type, ensuring it's not an array
+    const parsedResult = data.parsed_result as Record<string, any>;
+    
+    // Create a new object that conforms to SajuResult type with proper type checking
     return {
       id: data.id,
-      ohaeng: data.parsed_result.ohaeng || '',
-      sipsin: data.parsed_result.sipsin || '',
-      personality: Array.isArray(data.parsed_result.personality) ? data.parsed_result.personality : [],
-      career: Array.isArray(data.parsed_result.career) ? data.parsed_result.career : [],
-      relationship: Array.isArray(data.parsed_result.relationship) ? data.parsed_result.relationship : [],
-      yearly: Array.isArray(data.parsed_result.yearly) ? data.parsed_result.yearly : []
+      ohaeng: typeof parsedResult.ohaeng === 'string' ? parsedResult.ohaeng : '',
+      sipsin: typeof parsedResult.sipsin === 'string' ? parsedResult.sipsin : '',
+      personality: Array.isArray(parsedResult.personality) ? parsedResult.personality : [],
+      career: Array.isArray(parsedResult.career) ? parsedResult.career : [],
+      relationship: Array.isArray(parsedResult.relationship) ? parsedResult.relationship : [],
+      yearly: Array.isArray(parsedResult.yearly) ? 
+        parsedResult.yearly.map((item: any) => ({
+          year: typeof item.year === 'string' ? item.year : '',
+          description: typeof item.description === 'string' ? item.description : ''
+        })) : []
     };
   } catch (error) {
     console.error('Error in getSajuResult:', error);
