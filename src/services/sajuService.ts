@@ -3,6 +3,14 @@ import { Json } from '@/integrations/supabase/types';
 import { DateTime } from 'luxon';
 import { Season24Service } from './Season24Service';
 import * as GabjaConstants from '../utils/GabjaConstants';
+import {
+  calculateMoonPhase,
+  calculateZodiacSign,
+  calculateZodiacAnimal,
+  calculateDayOfWeek,
+  calculateSeasonalTerm,
+  isHoliday
+} from '../utils/ManseryeokUtils';
 
 export interface SajuFormData {
   birthYear: string;
@@ -38,6 +46,39 @@ export interface SajuResult {
   monthHangulGanji: string;
   dayHangulGanji: string;
   timeHangulGanji: string;
+  
+  solarDate: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  lunarDate: {
+    year: number;
+    month: number;
+    day: number;
+    isLeapMonth: boolean;
+  };
+  seasonalTerms: {
+    hanja: string;   // 절기 한자
+    hangul: string;  // 절기 한글
+    timestamp: number; // 절기 시작 시간
+  };
+  celestialInfo: {
+    zodiacSign: string;     // 별자리
+    moonPhase: string;      // 달의 위상
+    moonPhaseTime: number;  // 달 위상 시간
+    monthSize: number;      // 달의 크기 (대/소월)
+  };
+  additionalInfo: {
+    zodiacAnimal: string;  // 띠
+    dayOfWeek: {
+      hanja: string;      // 요일 한자
+      hangul: string;     // 요일 한글
+    };
+    isHoliday: boolean;   // 공휴일 여부
+    solarPlanInfo: string; // 양력 플래너 정보
+    lunarPlanInfo: string; // 음력 플래너 정보
+  };
 }
 
 export class SajuCalculator {
@@ -57,6 +98,21 @@ export class SajuCalculator {
     const dayHanjaGanji = this.calcDayGanji();
     const timeHanjaGanji = this.calcTimeGanji(dayHanjaGanji);
 
+    // 달의 위상 계산
+    const moonPhase = calculateMoonPhase(this.userBirth);
+    
+    // 절기 계산
+    const seasonalTerm = calculateSeasonalTerm(this.userBirth);
+    
+    // 요일 계산
+    const dayOfWeek = calculateDayOfWeek(this.userBirth);
+    
+    // 별자리 계산
+    const zodiacSign = calculateZodiacSign(this.userBirth);
+    
+    // 띠 계산
+    const zodiacAnimal = calculateZodiacAnimal(this.userBirth.year);
+
     return {
       yearHanjaGanji,
       monthHanjaGanji,
@@ -65,7 +121,41 @@ export class SajuCalculator {
       yearHangulGanji: GabjaConstants.convertHanjaToHangul(yearHanjaGanji),
       monthHangulGanji: GabjaConstants.convertHanjaToHangul(monthHanjaGanji),
       dayHangulGanji: GabjaConstants.convertHanjaToHangul(dayHanjaGanji),
-      timeHangulGanji: GabjaConstants.convertHanjaToHangul(timeHanjaGanji)
+      timeHangulGanji: GabjaConstants.convertHanjaToHangul(timeHanjaGanji),
+      
+      solarDate: {
+        year: this.userBirth.year,
+        month: this.userBirth.month,
+        day: this.userBirth.day
+      },
+      
+      lunarDate: {
+        year: this.userBirth.year, // TODO: 실제 음력 변환 로직 필요
+        month: this.userBirth.month,
+        day: this.userBirth.day,
+        isLeapMonth: false
+      },
+      
+      seasonalTerms: {
+        hanja: seasonalTerm.hanja,
+        hangul: seasonalTerm.hangul,
+        timestamp: seasonalTerm.timestamp
+      },
+      
+      celestialInfo: {
+        zodiacSign: zodiacSign,
+        moonPhase: moonPhase.phase,
+        moonPhaseTime: moonPhase.time,
+        monthSize: 29 // TODO: 실제 달의 대소 계산 로직 필요
+      },
+      
+      additionalInfo: {
+        zodiacAnimal: zodiacAnimal,
+        dayOfWeek: dayOfWeek,
+        isHoliday: isHoliday(this.userBirth),
+        solarPlanInfo: '', // TODO: 플래너 정보 추가
+        lunarPlanInfo: ''  // TODO: 플래너 정보 추가
+      }
     };
   }
 
@@ -363,17 +453,17 @@ export const saveSajuToSessionStorage = (formData: SajuFormData): void => {
   sessionStorage.setItem('sajuFormData', JSON.stringify(formData));
 };
 
-export const getSajuFromSessionStorage = (): SajuFormData | null => {
-  const storedData = sessionStorage.getItem('sajuFormData');
+export const getSajuFromSessionStorage = () => {
+  const data = sessionStorage.getItem('sajuFormData');
+  if (!data) return null;
   
-  if (!storedData) {
-    return null;
-  }
-  
-  try {
-    return JSON.parse(storedData);
-  } catch (error) {
-    console.error('Error parsing stored saju data:', error);
-    return null;
-  }
+  const storedData = JSON.parse(data);
+  return {
+    ...storedData,
+    birthYear: parseInt(storedData.birthYear),
+    birthMonth: parseInt(storedData.birthMonth),
+    birthDay: parseInt(storedData.birthDay),
+    birthHour: parseInt(storedData.birthHour),
+    birthMinute: parseInt(storedData.birthMinute),
+  };
 };
