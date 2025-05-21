@@ -87,7 +87,12 @@ const Chat = () => {
   }, [messages, user]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      const chatContainer = messagesEndRef.current.parentElement?.parentElement;
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+    }
   };
 
   useEffect(() => {
@@ -220,7 +225,7 @@ const Chat = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8 flex flex-col h-[calc(100vh-280px)]">
-          <div className="flex-1 p-4 overflow-y-auto">
+          <div className="flex-1 p-4 overflow-y-auto scroll-smooth">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div
@@ -261,7 +266,7 @@ const Chat = () => {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef}></div>
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
