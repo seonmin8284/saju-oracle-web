@@ -12,6 +12,13 @@ import {
   saveConversationToSessionStorage,
   getConversationFromSessionStorage,
 } from "@/services/chatService";
+import PaymentDialog from "@/components/PaymentDialog";
+import { PAYMENT_PRODUCTS } from "@/lib/constants";
+import {
+  createPaymentRequest,
+  checkPaymentStatus,
+  addCreditsToUser,
+} from "@/services/paymentService";
 
 type Message = {
   id: string;
@@ -37,6 +44,8 @@ const Chat = () => {
   const [messageCount, setMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Load conversation data on component mount
   useEffect(() => {
@@ -89,17 +98,51 @@ const Chat = () => {
     }
   }, [messages]);
 
+  const handlePayment = async (productId: string, paymentMethod: string) => {
+    if (!user) return;
+
+    setIsProcessingPayment(true);
+    try {
+      const product = PAYMENT_PRODUCTS[productId];
+      const { paymentId, redirectUrl } = await createPaymentRequest(
+        user.id,
+        product,
+        paymentMethod
+      );
+
+      // 실제 구현에서는 PG사의 결제창을 엽니다
+      window.location.href = redirectUrl;
+
+      // 결제 완료 후 처리 (실제 구현에서는 webhook으로 처리)
+      const isPaymentCompleted = await checkPaymentStatus(paymentId);
+      if (isPaymentCompleted) {
+        await addCreditsToUser(user.id, product.credits);
+        toast({
+          title: "결제 완료",
+          description: `${product.name} 구매가 완료되었습니다.`,
+        });
+        setShowPaymentDialog(false);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast({
+        title: "결제 오류",
+        description: "결제 처리 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!inputMessage.trim()) return;
 
-    // Check if user has reached the free message limit
+    // 무료 사용자의 경우 메시지 제한 확인
     if (messageCount >= 5 && !user) {
-      toast({
-        title: "무료 체험 한도 초과",
-        description: "더 많은 질문을 하시려면 로그인이 필요합니다.",
-      });
+      setShowPaymentDialog(true);
       return;
     }
 
@@ -250,6 +293,11 @@ const Chat = () => {
           </div>
         </div>
       </div>
+      <PaymentDialog
+        open={showPaymentDialog}
+        onClose={() => setShowPaymentDialog(false)}
+        onSelectProduct={handlePayment}
+      />
     </Layout>
   );
 };

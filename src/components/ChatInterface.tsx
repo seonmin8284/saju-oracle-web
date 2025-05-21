@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Box, TextField, Button, Typography } from "@mui/material";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  getUserCredits,
-  PaymentProduct,
-  PaymentMethod,
-} from "@/services/paymentService";
+import { getUserCredits } from "@/services/paymentService";
+import type { PaymentProduct } from "@/lib/constants";
+import { PAYMENT_PRODUCTS } from "@/lib/constants";
+import type { PaymentMethod } from "@/services/paymentService";
 import PaymentDialog from "./PaymentDialog";
 import { processPayment } from "@/services/paymentService";
 
@@ -46,13 +45,15 @@ export default function ChatInterface({
     }
   };
 
-  const handlePayment = async (
-    product: PaymentProduct,
-    method: PaymentMethod
-  ) => {
+  const handlePayment = async (productId: string, paymentMethod: string) => {
     if (!user) return;
 
-    const result = await processPayment(user.id, product, method);
+    const product = PAYMENT_PRODUCTS[productId];
+    const result = await processPayment(
+      user.id,
+      product,
+      paymentMethod as PaymentMethod
+    );
     if (result.success) {
       await loadUserCredits();
       setShowPaymentDialog(false);

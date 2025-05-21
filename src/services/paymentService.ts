@@ -1,14 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import { PaymentProduct } from '@/lib/constants';
 
 export type PaymentMethod = 'toss' | 'naver' | 'kakao';
-
-export interface PaymentProduct {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  credits: number;
-}
 
 export interface UserCredits {
   id: string;
@@ -41,25 +34,75 @@ export const PAYMENT_PRODUCTS: PaymentProduct[] = [
   }
 ];
 
-export const getUserCredits = async (userId: string): Promise<number> => {
-  try {
-    const { data, error } = await supabase
-      .from('user_credits')
-      .select('*')
-      .eq('user_id', userId)
-      .gt('expires_at', new Date().toISOString())
-      .single();
+export async function getUserCredits(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('user_credits')
+    .select('credits')
+    .eq('id', userId)
+    .single();
 
-    if (error || !data) {
-      return 0;
-    }
-
-    return data.credits;
-  } catch (error) {
+  if (error) {
     console.error('Error fetching user credits:', error);
     return 0;
   }
-};
+
+  return data?.credits || 0;
+}
+
+export async function createPaymentRequest(
+  userId: string,
+  product: PaymentProduct,
+  paymentMethod: string
+) {
+  // 실제 구현에서는 여기서 PG사 SDK를 호출하여 결제창 URL을 받아옵니다
+  const { data, error } = await supabase
+    .from('payment_requests')
+    .insert([
+      {
+        user_id: userId,
+        amount: product.price,
+        status: 'pending',
+        payment_method: paymentMethod
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error('결제 요청 생성 실패');
+  }
+
+  // 실제 구현에서는 PG사의 결제창 URL을 반환합니다
+  return {
+    paymentId: data.id,
+    redirectUrl: `https://payment.example.com/${data.id}`
+  };
+}
+
+export async function checkPaymentStatus(paymentId: string) {
+  const { data, error } = await supabase
+    .from('payment_requests')
+    .select('status')
+    .eq('id', paymentId)
+    .single();
+
+  if (error) {
+    throw new Error('결제 상태 확인 실패');
+  }
+
+  return data.status === 'completed';
+}
+
+export async function addCreditsToUser(userId: string, credits: number) {
+  const { error } = await supabase.rpc('add_user_credits', {
+    p_user_id: userId,
+    p_credits: credits
+  });
+
+  if (error) {
+    throw new Error('크레딧 추가 실패');
+  }
+}
 
 export const deductCredits = async (userId: string, amount: number = 1): Promise<boolean> => {
   try {
