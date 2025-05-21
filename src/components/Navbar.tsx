@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,28 +22,40 @@ const Navbar: React.FC = () => {
               </h1>
             </Link>
           </div>
-          
+
           {/* Desktop menu */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">
-              <Link to="/" className="text-gray-700 hover:text-indigo transition-colors">
+              <Link
+                to="/"
+                className="text-gray-700 hover:text-indigo transition-colors"
+              >
                 홈
               </Link>
-              <Link to="/fortune" className="text-gray-700 hover:text-indigo transition-colors">
+              <Link
+                to="/fortune"
+                className="text-gray-700 hover:text-indigo transition-colors"
+              >
                 오늘의 운세
               </Link>
-              <Link to="/saju-input" className="text-gray-700 hover:text-indigo transition-colors">
+              <Link
+                to="/saju-input"
+                className="text-gray-700 hover:text-indigo transition-colors"
+              >
                 사주 입력
               </Link>
-              <Link to="/celebrities" className="text-gray-700 hover:text-indigo transition-colors">
+              <Link
+                to="/celebrities"
+                className="text-gray-700 hover:text-indigo transition-colors"
+              >
                 유명인 사주
               </Link>
-              <button className="secondary-button py-2 px-5">
+              <Link to="/auth" className="secondary-button py-2 px-5">
                 로그인
-              </button>
+              </Link>
             </div>
           </div>
-          
+
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
@@ -65,40 +76,41 @@ const Navbar: React.FC = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-white shadow-lg animate-fade-in">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo hover:bg-lavender/50"
               onClick={() => setIsMenuOpen(false)}
             >
               홈
             </Link>
-            <Link 
-              to="/fortune" 
+            <Link
+              to="/fortune"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo hover:bg-lavender/50"
               onClick={() => setIsMenuOpen(false)}
             >
               오늘의 운세
             </Link>
-            <Link 
-              to="/saju-input" 
+            <Link
+              to="/saju-input"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo hover:bg-lavender/50"
               onClick={() => setIsMenuOpen(false)}
             >
               사주 입력
             </Link>
-            <Link 
-              to="/celebrities" 
+            <Link
+              to="/celebrities"
               className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo hover:bg-lavender/50"
               onClick={() => setIsMenuOpen(false)}
             >
               유명인 사주
             </Link>
-            <button 
+            <Link
+              to="/auth"
               className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo hover:bg-lavender/50"
               onClick={() => setIsMenuOpen(false)}
             >
               로그인
-            </button>
+            </Link>
           </div>
         </div>
       )}
