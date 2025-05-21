@@ -21,6 +21,8 @@ export type Conversation = {
   created_at: Date;
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+
 // Create a new chat conversation for the user
 export const createConversation = async (): Promise<string | null> => {
   try {
@@ -141,27 +143,30 @@ export const getUserConversations = async (): Promise<Conversation[]> => {
 };
 
 // Generate a response from the AI
-export const generateAIResponse = async (userInput: string): Promise<string> => {
+export async function generateAIResponse(message: string): Promise<string> {
   try {
-    // Stage 3: For now, we're still using dummy data
-    // In a real implementation, this would call an AI API
-    const randomIndex = Math.floor(Math.random() * chatBotResponses.length);
-    return chatBotResponses[randomIndex];
-    
-    // Future improvement: Connect to an actual AI API
-    // const response = await fetch('AI_API_ENDPOINT', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ prompt: userInput })
-    // });
-    // 
-    // const data = await response.json();
-    // return data.response;
+    const response = await fetch(`${API_URL}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        tone: '기본'
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('API 응답 오류');
+    }
+
+    const data = await response.json();
+    return data.response;
   } catch (error) {
     console.error('Error generating AI response:', error);
-    return '죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해 주세요.';
+    throw new Error('AI 응답 생성 중 오류가 발생했습니다.');
   }
-};
+}
 
 // Store conversation data in session storage for non-authenticated users
 export const saveConversationToSessionStorage = (messages: Message[]): void => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import Layout from "../components/Layout";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   createConversation,
@@ -19,6 +19,7 @@ import {
   checkPaymentStatus,
   addCreditsToUser,
 } from "@/services/paymentService";
+import { Button } from "@/components/ui/button";
 
 type Message = {
   id: string;
@@ -46,6 +47,7 @@ const Chat = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
 
   // Load conversation data on component mount
   useEffect(() => {
@@ -103,10 +105,22 @@ const Chat = () => {
     }
   }, [messages]);
 
+  const handleDetailReport = (message: Message) => {
+    if (!user) {
+      toast({
+        title: "로그인 필요",
+        description: "상세 리포트를 보려면 로그인이 필요합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedMessage(message);
+    setShowPaymentDialog(true);
+  };
+
   const handlePayment = async (productId: string, paymentMethod: string) => {
     if (!user) return;
 
-    setIsProcessingPayment(true);
     try {
       const product = PAYMENT_PRODUCTS[productId];
       const { paymentId, redirectUrl } = await createPaymentRequest(
@@ -117,17 +131,6 @@ const Chat = () => {
 
       // 실제 구현에서는 PG사의 결제창을 엽니다
       window.location.href = redirectUrl;
-
-      // 결제 완료 후 처리 (실제 구현에서는 webhook으로 처리)
-      const isPaymentCompleted = await checkPaymentStatus(paymentId);
-      if (isPaymentCompleted) {
-        await addCreditsToUser(user.id, product.credits);
-        toast({
-          title: "결제 완료",
-          description: `${product.name} 구매가 완료되었습니다.`,
-        });
-        setShowPaymentDialog(false);
-      }
     } catch (error) {
       console.error("Payment error:", error);
       toast({
@@ -135,8 +138,6 @@ const Chat = () => {
         description: "결제 처리 중 오류가 발생했습니다.",
         variant: "destructive",
       });
-    } finally {
-      setIsProcessingPayment(false);
     }
   };
 
@@ -242,14 +243,27 @@ const Chat = () => {
                     }`}
                   >
                     <p className="whitespace-pre-wrap">{message.text}</p>
-                    <div
-                      className={`text-xs mt-1 ${
-                        message.sender === "user"
-                          ? "text-indigo-100"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {formatTime(message.timestamp)}
+                    <div className="flex items-center justify-between mt-2">
+                      <div
+                        className={`text-xs ${
+                          message.sender === "user"
+                            ? "text-indigo-100"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {formatTime(message.timestamp)}
+                      </div>
+                      {message.sender === "bot" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs flex items-center gap-1 hover:bg-lavender/20"
+                          onClick={() => handleDetailReport(message)}
+                        >
+                          <FileText size={14} />
+                          상세 리포트 보기
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -297,12 +311,13 @@ const Chat = () => {
             </p>
           </div>
         </div>
+
+        <PaymentDialog
+          open={showPaymentDialog}
+          onClose={() => setShowPaymentDialog(false)}
+          onSelectProduct={handlePayment}
+        />
       </div>
-      <PaymentDialog
-        open={showPaymentDialog}
-        onClose={() => setShowPaymentDialog(false)}
-        onSelectProduct={handlePayment}
-      />
     </Layout>
   );
 };
