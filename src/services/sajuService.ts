@@ -110,11 +110,21 @@ export const getSajuResult = async (id: string): Promise<SajuResult | null> => {
       return null;
     }
 
-    // For now, use the stored parsed_result
-    // In a production app, you might want to format the data here
+    // Fix: Properly cast and validate the parsed_result before returning
+    if (!data.parsed_result || typeof data.parsed_result !== 'object') {
+      console.error('Invalid saju result data structure');
+      return null;
+    }
+
+    // Create a new object that conforms to SajuResult type
     return {
       id: data.id,
-      ...data.parsed_result
+      ohaeng: data.parsed_result.ohaeng || '',
+      sipsin: data.parsed_result.sipsin || '',
+      personality: Array.isArray(data.parsed_result.personality) ? data.parsed_result.personality : [],
+      career: Array.isArray(data.parsed_result.career) ? data.parsed_result.career : [],
+      relationship: Array.isArray(data.parsed_result.relationship) ? data.parsed_result.relationship : [],
+      yearly: Array.isArray(data.parsed_result.yearly) ? data.parsed_result.yearly : []
     };
   } catch (error) {
     console.error('Error in getSajuResult:', error);
