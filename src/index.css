@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -110,7 +109,7 @@
     @apply flex flex-col items-center justify-center w-24 h-24 rounded-full 
     bg-lavender text-indigo font-medium text-lg shadow-md 
     hover:bg-indigo hover:text-white transition-all duration-300 
-    active:scale-95 animate-pulse-soft;
+    active:scale-95;
   }
 
   .primary-button {
