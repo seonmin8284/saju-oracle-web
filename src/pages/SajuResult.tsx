@@ -48,8 +48,23 @@ type SajuResult = {
       hangul: string;
     };
     isHoliday: boolean;
+    solarPlanInfo?: string;
+    lunarPlanInfo?: string;
+  };
+  solarDate?: {
+    year: number;
+    month: number;
+    day: number;
+  };
+  lunarDate?: {
+    year: number;
+    month: number;
+    day: number;
+    isLeapMonth: boolean;
   };
 };
+
+type TabType = "basic" | "personality" | "yearly";
 
 const SajuResult = () => {
   const navigate = useNavigate();
@@ -57,7 +72,7 @@ const SajuResult = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<FormData | null>(null);
   const [sajuResult, setSajuResult] = useState<SajuResult | null>(null);
-  const [activeTab, setActiveTab] = useState("basic");
+  const [activeTab, setActiveTab] = useState<TabType>("basic");
   const [loading, setLoading] = useState(true);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentType, setPaymentType] = useState<"download" | "chat" | null>(
@@ -320,39 +335,98 @@ const SajuResult = () => {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-lavender/20 p-4 rounded-lg">
-                      <h3 className="font-medium text-lg text-indigo mb-2">
-                        별자리 & 띠
-                      </h3>
-                      <p className="text-xl font-semibold">
-                        {sajuResult.celestialInfo?.zodiacSign}
-                      </p>
-                      <p className="text-gray-600 mt-2">
-                        {sajuResult.additionalInfo?.zodiacAnimal}띠
-                      </p>
+                  <div className="mb-8">
+                    <h3 className="font-medium text-xl text-indigo mb-4">
+                      만세력 정보
+                    </h3>
+
+                    <div className="grid md:grid-cols-3 gap-6 mb-6">
+                      <div className="bg-white shadow-md rounded-lg p-4">
+                        <h4 className="font-medium text-lg text-indigo mb-2">
+                          날짜 정보
+                        </h4>
+                        <div className="space-y-2">
+                          <p>
+                            <span className="text-gray-600">양력:</span>{" "}
+                            {sajuResult.solarDate?.year}년{" "}
+                            {sajuResult.solarDate?.month}월{" "}
+                            {sajuResult.solarDate?.day}일
+                          </p>
+                          <p>
+                            <span className="text-gray-600">음력:</span>{" "}
+                            {sajuResult.lunarDate?.year}년{" "}
+                            {sajuResult.lunarDate?.month}월{" "}
+                            {sajuResult.lunarDate?.day}일
+                            {sajuResult.lunarDate?.isLeapMonth && " (윤달)"}
+                          </p>
+                          <p>
+                            <span className="text-gray-600">요일:</span>{" "}
+                            {sajuResult.additionalInfo?.dayOfWeek.hangul}요일 (
+                            {sajuResult.additionalInfo?.dayOfWeek.hanja})
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white shadow-md rounded-lg p-4">
+                        <h4 className="font-medium text-lg text-indigo mb-2">
+                          천문 정보
+                        </h4>
+                        <div className="space-y-2">
+                          <p>
+                            <span className="text-gray-600">별자리:</span>{" "}
+                            {sajuResult.celestialInfo?.zodiacSign}
+                          </p>
+                          <p>
+                            <span className="text-gray-600">달의 위상:</span>{" "}
+                            {sajuResult.celestialInfo?.moonPhase}
+                          </p>
+                          <p>
+                            <span className="text-gray-600">달의 크기:</span>{" "}
+                            {sajuResult.celestialInfo?.monthSize}일
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white shadow-md rounded-lg p-4">
+                        <h4 className="font-medium text-lg text-indigo mb-2">
+                          절기와 명절
+                        </h4>
+                        <div className="space-y-2">
+                          <p>
+                            <span className="text-gray-600">절기:</span>{" "}
+                            {sajuResult.seasonalTerms?.hangul} (
+                            {sajuResult.seasonalTerms?.hanja})
+                          </p>
+                          <p>
+                            <span className="text-gray-600">띠:</span>{" "}
+                            {sajuResult.additionalInfo?.zodiacAnimal}띠
+                          </p>
+                          {sajuResult.additionalInfo?.isHoliday && (
+                            <p className="text-red-500 font-medium">공휴일</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-lavender/20 p-4 rounded-lg">
-                      <h3 className="font-medium text-lg text-indigo mb-2">
-                        절기
-                      </h3>
-                      <p className="text-xl font-semibold">
-                        {sajuResult.seasonalTerms?.hangul}
-                      </p>
-                      <p className="text-gray-600 mt-2">
-                        {sajuResult.seasonalTerms?.hanja}
-                      </p>
-                    </div>
-                    <div className="bg-lavender/20 p-4 rounded-lg">
-                      <h3 className="font-medium text-lg text-indigo mb-2">
-                        달의 위상
-                      </h3>
-                      <p className="text-xl font-semibold">
-                        {sajuResult.celestialInfo?.moonPhase}
-                      </p>
-                      <p className="text-gray-600 mt-2">
-                        {sajuResult.celestialInfo?.monthSize}일
-                      </p>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="bg-white shadow-md rounded-lg p-4">
+                        <h4 className="font-medium text-lg text-indigo mb-2">
+                          양력 플래너
+                        </h4>
+                        <div className="whitespace-pre-line text-gray-700">
+                          {sajuResult.additionalInfo?.solarPlanInfo ||
+                            "플래너 정보가 없습니다."}
+                        </div>
+                      </div>
+                      <div className="bg-white shadow-md rounded-lg p-4">
+                        <h4 className="font-medium text-lg text-indigo mb-2">
+                          음력 플래너
+                        </h4>
+                        <div className="whitespace-pre-line text-gray-700">
+                          {sajuResult.additionalInfo?.lunarPlanInfo ||
+                            "플래너 정보가 없습니다."}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
