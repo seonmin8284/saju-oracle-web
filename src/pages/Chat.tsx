@@ -1,12 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/hooks/use-toast';
 import Layout from '../components/Layout';
 import { Send, ArrowLeft } from 'lucide-react';
-import { chatBotResponses } from '../data/dummyData';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  createConversation, 
+  saveMessage, 
+  getConversationMessages, 
+  generateAIResponse,
+  saveConversationToSessionStorage,
+  getConversationFromSessionStorage
+} from '@/services/chatService';
 
 type Message = {
-  id: number;
+  id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
@@ -14,9 +23,10 @@ type Message = {
 
 const Chat = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: 1,
+      id: '1',
       text: '안녕하세요! 사주와 관련된 질문이 있으시면 언제든지 물어보세요. 어떤 도움이 필요하신가요?',
       sender: 'bot',
       timestamp: new Date(),
@@ -24,7 +34,44 @@ const Chat = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messageCount, setMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load conversation data on component mount
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (user) {
+        // For authenticated users, create or load conversation from the database
+        const convId = await createConversation();
+        if (convId) {
+          setConversationId(convId);
+          const storedMessages = await getConversationMessages(convId);
+          if (storedMessages.length > 0) {
+            setMessages(storedMessages);
+            setMessageCount(storedMessages.filter(msg => msg.sender === 'user').length);
+          }
+        }
+      } else {
+        // For non-authenticated users, load from session storage
+        const storedMessages = getConversationFromSessionStorage();
+        setMessages(storedMessages);
+        setMessageCount(storedMessages.filter(msg => msg.sender === 'user').length);
+      }
+    };
+
+    loadConversation();
+  }, [user]);
+
+  // Save messages to storage when they change
+  useEffect(() => {
+    if (messages.length > 1) {
+      if (!user) {
+        // For non-authenticated users, save to session storage
+        saveConversationToSessionStorage(messages);
+      }
+    }
+  }, [messages, user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,14 +81,26 @@ const Chat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!inputMessage.trim()) return;
     
-    // Add user message
+    // Check if user has reached the free message limit
+    if (messageCount >= 5 && !user) {
+      toast({
+        title: '무료 체험 한도 초과',
+        description: '더 많은 질문을 하시려면 로그인이 필요합니다.',
+      });
+      return;
+    }
+    
+    // Generate a unique ID for the user message
+    const userMessageId = Date.now().toString();
+    
+    // Add user message to the UI
     const userMessage: Message = {
-      id: messages.length + 1,
+      id: userMessageId,
       text: inputMessage,
       sender: 'user',
       timestamp: new Date(),
@@ -50,23 +109,45 @@ const Chat = () => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
+    setMessageCount(prev => prev + 1);
     
-    // Simulate bot response after a delay
-    setTimeout(() => {
-      // Get random response from dummy data
-      const randomIndex = Math.floor(Math.random() * chatBotResponses.length);
-      const botResponse = chatBotResponses[randomIndex];
+    // If authenticated, save the message to the database
+    if (user && conversationId) {
+      await saveMessage(conversationId, userMessage.text, 'user');
+    }
+    
+    try {
+      // Generate AI response
+      const botResponse = await generateAIResponse(inputMessage);
       
+      // Generate a unique ID for the bot message
+      const botMessageId = (Date.now() + 1).toString();
+      
+      // Add bot response to the UI
       const botMessage: Message = {
-        id: messages.length + 2,
+        id: botMessageId,
         text: botResponse,
         sender: 'bot',
         timestamp: new Date(),
       };
       
-      setMessages(prev => [...prev, botMessage]);
+      setTimeout(() => {
+        setMessages(prev => [...prev, botMessage]);
+        setIsTyping(false);
+        
+        // If authenticated, save the bot message to the database
+        if (user && conversationId) {
+          saveMessage(conversationId, botMessage.text, 'bot');
+        }
+      }, 1500);
+    } catch (error) {
       setIsTyping(false);
-    }, 1500);
+      console.error('Error generating response:', error);
+      toast({
+        title: '오류 발생',
+        description: '응답을 생성하는 중 오류가 발생했습니다. 다시 시도해 주세요.',
+      });
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -146,7 +227,9 @@ const Chat = () => {
               </button>
             </form>
             <p className="text-xs text-gray-500 mt-2">
-              무료 체험: 5회 질문 (이후 구독 필요)
+              {user 
+                ? '무제한 질문 가능' 
+                : `무료 체험: ${Math.max(0, 5 - messageCount)}회 질문 남음 (이후 구독 필요)`}
             </p>
           </div>
         </div>
