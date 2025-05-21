@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { chatBotResponses } from '../data/dummyData';
 
@@ -7,6 +6,13 @@ type Message = {
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+};
+
+type StoredMessage = {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: string;
 };
 
 export type Conversation = {
@@ -175,7 +181,7 @@ export const getConversationFromSessionStorage = (): Message[] => {
   }
   
   try {
-    return JSON.parse(storedMessages).map((msg: any) => ({
+    return JSON.parse(storedMessages).map((msg: StoredMessage) => ({
       ...msg,
       timestamp: new Date(msg.timestamp)
     }));

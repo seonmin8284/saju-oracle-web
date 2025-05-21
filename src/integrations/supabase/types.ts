@@ -267,6 +267,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          id: string
+          user_id: string
+          credits: number
+          expires_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          credits: number
+          expires_at: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          credits?: number
+          expires_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

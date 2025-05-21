@@ -5,7 +5,7 @@ export const SIBIJI_HANJA = ['子', '丑', '寅', '卯', '辰', '巳', '午', '�
 
 export const convertHangulToHanja = (hangul: string): string => {
   let result = '';
-  for (let char of hangul) {
+  for (const char of hangul) {
     const ganIndex = SIBGAN_HANGUL.indexOf(char);
     if (ganIndex !== -1) {
       result += SIBGAN_HANJA[ganIndex];
@@ -23,7 +23,7 @@ export const convertHangulToHanja = (hangul: string): string => {
 
 export const convertHanjaToHangul = (hanja: string): string => {
   let result = '';
-  for (let char of hanja) {
+  for (const char of hanja) {
     const ganIndex = SIBGAN_HANJA.indexOf(char);
     if (ganIndex !== -1) {
       result += SIBGAN_HANGUL[ganIndex];
