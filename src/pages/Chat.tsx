@@ -316,6 +316,7 @@ const Chat = () => {
           open={showPaymentDialog}
           onClose={() => setShowPaymentDialog(false)}
           onSelectProduct={handlePayment}
+          type="chat"
         />
       </div>
     </Layout>

@@ -12,21 +12,27 @@ import { PAYMENT_PRODUCTS, PaymentProduct } from "@/lib/constants";
 interface PaymentDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelectProduct: (productId: string, paymentMethod: string) => Promise<void>;
+  onSelectProduct: (productId: string, paymentMethod: string) => void;
+  type: "download" | "chat" | null;
 }
 
 export default function PaymentDialog({
   open,
   onClose,
   onSelectProduct,
+  type,
 }: PaymentDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>상담 이용권 구매</DialogTitle>
+          <DialogTitle>
+            {type === "download" ? "상세 리포트 구매" : "AI 상담 크레딧 구매"}
+          </DialogTitle>
           <DialogDescription>
-            원하시는 상담 이용권을 선택해주세요
+            {type === "download"
+              ? "상세한 사주 해석 리포트를 받아보세요."
+              : "AI 상담사와 대화하며 더 자세한 운세를 알아보세요."}
           </DialogDescription>
         </DialogHeader>
 

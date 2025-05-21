@@ -110,6 +110,7 @@ export default function ChatInterface({
         open={showPaymentDialog}
         onClose={() => setShowPaymentDialog(false)}
         onSelectProduct={handlePayment}
+        type="chat"
       />
     </Box>
   );

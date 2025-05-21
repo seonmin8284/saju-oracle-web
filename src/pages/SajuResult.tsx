@@ -172,7 +172,7 @@ const SajuResult = () => {
     fetchData();
   }, [navigate, location.search, user]);
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     if (!user) {
       toast({
         title: "로그인 필요",
@@ -182,11 +182,20 @@ const SajuResult = () => {
       return;
     }
 
+    if (!sajuResult) {
+      toast({
+        title: "오류",
+        description: "사주 데이터를 찾을 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setPaymentType("download");
     setShowPaymentDialog(true);
   };
 
-  const handleOpenChat = () => {
+  const handleOpenChat = async () => {
     if (!user) {
       toast({
         title: "로그인 필요",
@@ -196,22 +205,44 @@ const SajuResult = () => {
       return;
     }
 
-    setPaymentType("chat");
-    setShowPaymentDialog(true);
+    if (!sajuResult) {
+      toast({
+        title: "오류",
+        description: "사주 데이터를 찾을 수 없습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    navigate("/chat");
   };
 
   const handlePayment = async (productId: string, paymentMethod: string) => {
-    if (!user) return;
+    if (!user || !sajuResult) {
+      toast({
+        title: "오류",
+        description: "결제를 진행할 수 없습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const product = PAYMENT_PRODUCTS[productId];
+      if (!product) {
+        throw new Error("유효하지 않은 상품입니다.");
+      }
+
       const { paymentId, redirectUrl } = await createPaymentRequest(
         user.id,
         product,
         paymentMethod
       );
 
-      // 실제 구현에서는 PG사의 결제창을 엽니다
+      if (!redirectUrl) {
+        throw new Error("결제 URL을 생성할 수 없습니다.");
+      }
+
       window.location.href = redirectUrl;
     } catch (error) {
       console.error("Payment error:", error);
@@ -537,7 +568,8 @@ const SajuResult = () => {
         <div className="flex justify-center gap-4 mb-8">
           <button
             onClick={handleDownloadReport}
-            className="flex items-center gap-2 primary-button"
+            className="flex items-center gap-2 primary-button disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !sajuResult}
           >
             <Download size={20} />
             상세 리포트 다운로드
@@ -545,7 +577,8 @@ const SajuResult = () => {
 
           <button
             onClick={handleOpenChat}
-            className="flex items-center gap-2 primary-button"
+            className="flex items-center gap-2 primary-button disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !sajuResult}
           >
             <MessageSquare size={20} />
             AI 상담사와 대화하기
@@ -560,6 +593,7 @@ const SajuResult = () => {
           setPaymentType(null);
         }}
         onSelectProduct={handlePayment}
+        type={paymentType}
       />
     </Layout>
   );
