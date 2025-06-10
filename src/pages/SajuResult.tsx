@@ -6,11 +6,14 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   getSajuFromSessionStorage,
   getSajuResult,
-} from "../services/sajuService";
+} from "../services/SajuService";
 import { toast } from "@/hooks/use-toast";
 import PaymentDialog from "@/components/PaymentDialog";
 import { createPaymentRequest } from "@/services/paymentService";
 import { PAYMENT_PRODUCTS } from "@/lib/constants";
+import SajuTable from "@/components/SajuTable";
+import axios from "axios";
+import { SajuFormData } from "../services/SajuService";
 
 type FormData = {
   birthYear: number;
@@ -22,47 +25,53 @@ type FormData = {
   birthplace: string;
 };
 
-type SajuResult = {
-  id: string;
+interface BaziRequest {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  gender: string;
+  location: string;
+  offset: number;
+}
+
+interface BaziResult {
   ohaeng: string;
   sipsin: string;
-  personality: string[];
-  career: string[];
-  relationship: string[];
-  yearly: { year: string; description: string }[];
-  celestialInfo?: {
-    zodiacSign: string;
-    moonPhase: string;
-    moonPhaseTime: number;
-    monthSize: number;
-  };
-  seasonalTerms?: {
-    hanja: string;
-    hangul: string;
-    timestamp: number;
-  };
-  additionalInfo?: {
-    zodiacAnimal: string;
-    dayOfWeek: {
-      hanja: string;
-      hangul: string;
-    };
-    isHoliday: boolean;
-    solarPlanInfo?: string;
-    lunarPlanInfo?: string;
-  };
-  solarDate?: {
+  lunar_date: string;
+  day_of_week: string;
+  zodiac_sign: string;
+  moon_phase: string;
+  month_size: number;
+  seasonal_term: string;
+  zodiac_animal: string;
+  solar_plan_info: string;
+  lunar_plan_info: string;
+  analysis: string;
+}
+
+interface BaziResponse {
+  input_info: {
     year: number;
     month: number;
     day: number;
+    hour: number;
+    minute: number;
+    gender: string;
+    location: string;
   };
-  lunarDate?: {
-    year: number;
-    month: number;
-    day: number;
-    isLeapMonth: boolean;
-  };
-};
+  corrected_time: string;
+  result: BaziResult;
+}
+
+interface ValidationError {
+  detail: Array<{
+    loc: [string, number];
+    msg: string;
+    type: string;
+  }>;
+}
 
 type TabType = "basic" | "personality" | "yearly";
 
@@ -70,8 +79,8 @@ const SajuResult = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [formData, setFormData] = useState<FormData | null>(null);
-  const [sajuResult, setSajuResult] = useState<SajuResult | null>(null);
+  const [formData, setFormData] = useState<SajuFormData | null>(null);
+  const [result, setResult] = useState<BaziResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("basic");
   const [loading, setLoading] = useState(true);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -79,82 +88,126 @@ const SajuResult = () => {
     null
   );
 
+  const sajuTableData = {
+    solarDate: "1996/05/13 04:41",
+    lunarDate: "1996/03/26 04:41",
+    gender: "남자",
+    birthplace: "부산광역시",
+    adjustedTime: "1996/05/13 04:17",
+    sajuData: {
+      year: {
+        cheongan: "병 (정관)",
+        jiji: "자",
+        jijanggan: "계",
+        twelveGods: "병",
+        twelveKillers: "반안살:×, 재살:×, 월살:×",
+      },
+      month: {
+        cheongan: "계 (상관)",
+        jiji: "사",
+        jijanggan: "병,경,무",
+        twelveGods: "양",
+        twelveKillers: "반안살:×, 재살:×, 월살:×",
+      },
+      day: {
+        cheongan: "경 (비견)",
+        jiji: "술",
+        jijanggan: "신,정,무",
+        twelveGods: "제왕",
+        twelveKillers: "반안살:×, 재살:×, 월살:×",
+      },
+      hour: {
+        cheongan: "무 (정인)",
+        jiji: "인",
+        jijanggan: "갑,병,무",
+        twelveGods: "묘",
+        twelveKillers: "반안살:×, 재살:×, 월살:×",
+      },
+    },
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Check if we have an ID in the URL (for logged-in users)
-        const params = new URLSearchParams(location.search);
-        const sajuId = params.get("id");
+        let data: SajuFormData | null = null;
 
-        if (sajuId && user) {
-          // Fetch from Supabase
-          const result = await getSajuResult(sajuId);
-          if (result) {
-            setSajuResult(result);
-            // Extract form data from the database result if needed
-            // This might require additional API calls depending on your data structure
-          } else {
+        if (user) {
+          const searchParams = new URLSearchParams(location.search);
+          const id = searchParams.get("id");
+
+          if (id) {
+            const analysisResult = await getSajuResult(id);
+            if (analysisResult) {
+              data = {
+                birthYear: analysisResult.id.split("-")[0],
+                birthMonth: analysisResult.id.split("-")[1],
+                birthDay: analysisResult.id.split("-")[2],
+                birthHour: analysisResult.id.split("-")[3],
+                birthMinute: analysisResult.id.split("-")[4],
+                gender: analysisResult.id.split("-")[5] as "male" | "female",
+                birthplace: analysisResult.id.split("-")[6] || "korea",
+              };
+            }
+          }
+        } else {
+          const storedData = getSajuFromSessionStorage();
+          if (storedData) {
+            data = storedData;
+          }
+        }
+
+        if (data) {
+          setFormData(data);
+
+          try {
+            const response = await axios.post<BaziResponse>(
+              "https://sajuapi-production.up.railway.app/calculate",
+              {
+                year: parseInt(data.birthYear),
+                month: parseInt(data.birthMonth),
+                day: parseInt(data.birthDay),
+                hour: parseInt(data.birthHour),
+                minute: parseInt(data.birthMinute),
+                gender: data.gender === "male" ? "남자" : "여자",
+                location:
+                  data.birthplace === "korea" ? "부산광역시" : data.birthplace,
+                offset: 24,
+              } as BaziRequest,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                  "Access-Control-Allow-Methods": "POST, OPTIONS",
+                  "Access-Control-Allow-Headers": "Content-Type",
+                },
+                withCredentials: false,
+              }
+            );
+
+            if (response.data) {
+              setResult(response.data);
+            } else {
+              throw new Error("API 응답 데이터가 없습니다.");
+            }
+          } catch (apiError) {
+            console.error("API 호출 에러:", apiError);
             toast({
-              title: "오류",
-              description: "사주 데이터를 불러오는 중 문제가 발생했습니다.",
+              title: "API 오류",
+              description:
+                "사주 계산 중 문제가 발생했습니다. 다시 시도해주세요.",
               variant: "destructive",
             });
             navigate("/saju-input");
           }
         } else {
-          // Use session storage for non-authenticated users
-          const storedData = getSajuFromSessionStorage();
-
-          if (!storedData) {
-            navigate("/saju-input");
-            return;
-          }
-
-          setFormData(storedData);
-          // For non-authenticated users, we'll use the dummy result
-          setSajuResult({
-            id: "temp",
-            ohaeng: "화(火)",
-            sipsin: "식신(食神)",
-            personality: [
-              "창의적이고 열정적인 성격을 가지고 있습니다.",
-              "새로운 아이디어를 창출하는 능력이 뛰어납니다.",
-              "긍정적인 에너지로 주변 사람들에게 영감을 줍니다.",
-              "예술적 감각이 풍부하며 아름다움을 추구합니다.",
-              "때로는 충동적인 결정을 내릴 수 있으니 주의가 필요합니다.",
-            ],
-            career: [
-              "창의력을 발휘할 수 있는 예술, 디자인 분야에 적합합니다.",
-              "마케팅, 광고, 기획 등의 분야에서도 능력을 발휘할 수 있습니다.",
-              "자신만의 독특한 시각으로 혁신을 이끌어낼 수 있는 직업이 좋습니다.",
-              "팀 프로젝트보다는 개인의 창의성을 발휘할 수 있는 역할이 적합합니다.",
-            ],
-            relationship: [
-              "열정적이고 로맨틱한 연애 스타일을 가지고 있습니다.",
-              "파트너에게 풍부한 영감과 에너지를 제공합니다.",
-              "안정적이고 차분한 성향의 파트너와 균형을 이룰 수 있습니다.",
-              "감정 표현이 풍부하여 관계에서 진실된 소통이 가능합니다.",
-              "때로는 감정의 기복이 있을 수 있으니 이해와 인내가 필요합니다.",
-            ],
-            yearly: [
-              {
-                year: "2025",
-                description:
-                  "창의적인 에너지가 높아지는 해로, 새로운 프로젝트나 계획을 시작하기에 좋은 시기입니다. 특히 3월~7월 사이에 중요한 기회가 올 수 있으니 준비하세요.",
-              },
-              {
-                year: "2026",
-                description:
-                  "안정과 성장이 함께 이루어지는 해입니다. 기존의 관계와 사업이 더욱 견고해지며, 건강 관리에 특히 신경 써야 합니다.",
-              },
-              {
-                year: "2027",
-                description:
-                  "변화와 도전이 많은 해가 될 수 있습니다. 유연한 마음가짐으로 변화에 적응하면 더 나은 결과를 얻을 수 있을 것입니다.",
-              },
-            ],
+          toast({
+            title: "오류",
+            description: "사주 데이터를 찾을 수 없습니다.",
+            variant: "destructive",
           });
+          navigate("/saju-input");
         }
       } catch (error) {
         console.error("Error fetching saju data:", error);
@@ -182,7 +235,7 @@ const SajuResult = () => {
       return;
     }
 
-    if (!sajuResult) {
+    if (!result) {
       toast({
         title: "오류",
         description: "사주 데이터를 찾을 수 없습니다.",
@@ -205,7 +258,7 @@ const SajuResult = () => {
       return;
     }
 
-    if (!sajuResult) {
+    if (!result) {
       toast({
         title: "오류",
         description: "사주 데이터를 찾을 수 없습니다.",
@@ -218,7 +271,7 @@ const SajuResult = () => {
   };
 
   const handlePayment = async (productId: string, paymentMethod: string) => {
-    if (!user || !sajuResult) {
+    if (!user || !result) {
       toast({
         title: "오류",
         description: "결제를 진행할 수 없습니다. 다시 시도해주세요.",
@@ -264,7 +317,7 @@ const SajuResult = () => {
     );
   }
 
-  if (!formData && !sajuResult) {
+  if (!formData || !result) {
     return (
       <Layout>
         <div className="flex flex-col justify-center items-center min-h-[50vh]">
@@ -286,7 +339,9 @@ const SajuResult = () => {
           사주 해석 결과
         </h1>
 
-        {formData && (
+        <SajuTable {...sajuTableData} />
+
+        {/* {formData && (
           <p className="text-gray-600 mb-2 text-center">
             {formData.birthYear}년 {formData.birthMonth}월 {formData.birthDay}일{" "}
             {formData.birthHour}시 {formData.birthMinute}분
@@ -298,252 +353,164 @@ const SajuResult = () => {
             {formData.gender === "female" ? "여성" : "남성"} |{" "}
             {formData.birthplace === "korea" ? "한국" : formData.birthplace}
           </p>
-        )}
+        )} */}
 
-        {sajuResult && (
-          <div className="bg-white rounded-xl shadow-md overflow-hidden mb-8">
-            <div className="flex border-b">
-              <button
-                className={`py-4 px-6 font-medium text-sm flex-1 ${
-                  activeTab === "basic"
-                    ? "bg-indigo text-white"
-                    : "bg-white hover:bg-lavender/50 text-gray-700"
-                }`}
-                onClick={() => setActiveTab("basic")}
-              >
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          {/* <h2 className="text-2xl font-bold mb-6 text-indigo text-center">
+            사주 분석 결과
+          </h2> */}
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-indigo/5 to-lavender/5 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-indigo">
                 기본 정보
-              </button>
-              <button
-                className={`py-4 px-6 font-medium text-sm flex-1 ${
-                  activeTab === "personality"
-                    ? "bg-indigo text-white"
-                    : "bg-white hover:bg-lavender/50 text-gray-700"
-                }`}
-                onClick={() => setActiveTab("personality")}
-              >
-                성격 및 특성
-              </button>
-              <button
-                className={`py-4 px-6 font-medium text-sm flex-1 ${
-                  activeTab === "yearly"
-                    ? "bg-indigo text-white"
-                    : "bg-white hover:bg-lavender/50 text-gray-700"
-                }`}
-                onClick={() => setActiveTab("yearly")}
-              >
-                연도별 운세
-              </button>
-            </div>
-
-            <div className="p-6">
-              {activeTab === "basic" && (
-                <div className="animate-fade-in">
-                  <div className="grid md:grid-cols-2 gap-6 mb-6">
-                    <div className="bg-lavender/20 p-4 rounded-lg">
-                      <h3 className="font-medium text-lg text-indigo mb-2">
-                        나의 오행
-                      </h3>
-                      <p className="text-xl font-semibold">
-                        {sajuResult.ohaeng}
-                      </p>
-                      <p className="text-gray-600 mt-2">
-                        오행은 동양 철학에서 우주의 기본 요소를 나타내는
-                        개념으로, 개인의 성격과 에너지 특성을 이해하는 데 도움이
-                        됩니다.
-                      </p>
-                    </div>
-                    <div className="bg-lavender/20 p-4 rounded-lg">
-                      <h3 className="font-medium text-lg text-indigo mb-2">
-                        나의 십신
-                      </h3>
-                      <p className="text-xl font-semibold">
-                        {sajuResult.sipsin}
-                      </p>
-                      <p className="text-gray-600 mt-2">
-                        십신은 사주에서 개인의 기본 성향과 삶의 흐름을 나타내는
-                        요소로, 인생의 방향성을 제시합니다.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                    <h3 className="font-medium text-xl text-indigo mb-4">
-                      만세력 정보
-                    </h3>
-
-                    <div className="grid md:grid-cols-3 gap-6 mb-6">
-                      <div className="bg-white shadow-md rounded-lg p-4">
-                        <h4 className="font-medium text-lg text-indigo mb-2">
-                          날짜 정보
-                        </h4>
-                        <div className="space-y-2">
-                          <p>
-                            <span className="text-gray-600">양력:</span>{" "}
-                            {sajuResult.solarDate?.year}년{" "}
-                            {sajuResult.solarDate?.month}월{" "}
-                            {sajuResult.solarDate?.day}일
-                          </p>
-                          <p>
-                            <span className="text-gray-600">음력:</span>{" "}
-                            {sajuResult.lunarDate?.year}년{" "}
-                            {sajuResult.lunarDate?.month}월{" "}
-                            {sajuResult.lunarDate?.day}일
-                            {sajuResult.lunarDate?.isLeapMonth && " (윤달)"}
-                          </p>
-                          <p>
-                            <span className="text-gray-600">요일:</span>{" "}
-                            {sajuResult.additionalInfo?.dayOfWeek.hangul}요일 (
-                            {sajuResult.additionalInfo?.dayOfWeek.hanja})
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="bg-white shadow-md rounded-lg p-4">
-                        <h4 className="font-medium text-lg text-indigo mb-2">
-                          천문 정보
-                        </h4>
-                        <div className="space-y-2">
-                          <p>
-                            <span className="text-gray-600">별자리:</span>{" "}
-                            {sajuResult.celestialInfo?.zodiacSign}
-                          </p>
-                          <p>
-                            <span className="text-gray-600">달의 위상:</span>{" "}
-                            {sajuResult.celestialInfo?.moonPhase}
-                          </p>
-                          <p>
-                            <span className="text-gray-600">달의 크기:</span>{" "}
-                            {sajuResult.celestialInfo?.monthSize}일
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="bg-white shadow-md rounded-lg p-4">
-                        <h4 className="font-medium text-lg text-indigo mb-2">
-                          절기와 명절
-                        </h4>
-                        <div className="space-y-2">
-                          <p>
-                            <span className="text-gray-600">절기:</span>{" "}
-                            {sajuResult.seasonalTerms?.hangul} (
-                            {sajuResult.seasonalTerms?.hanja})
-                          </p>
-                          <p>
-                            <span className="text-gray-600">띠:</span>{" "}
-                            {sajuResult.additionalInfo?.zodiacAnimal}띠
-                          </p>
-                          {sajuResult.additionalInfo?.isHoliday && (
-                            <p className="text-red-500 font-medium">공휴일</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="bg-white shadow-md rounded-lg p-4">
-                        <h4 className="font-medium text-lg text-indigo mb-2">
-                          양력 플래너
-                        </h4>
-                        <div className="whitespace-pre-line text-gray-700">
-                          {sajuResult.additionalInfo?.solarPlanInfo ||
-                            "플래너 정보가 없습니다."}
-                        </div>
-                      </div>
-                      <div className="bg-white shadow-md rounded-lg p-4">
-                        <h4 className="font-medium text-lg text-indigo mb-2">
-                          음력 플래너
-                        </h4>
-                        <div className="whitespace-pre-line text-gray-700">
-                          {sajuResult.additionalInfo?.lunarPlanInfo ||
-                            "플래너 정보가 없습니다."}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 className="font-medium text-lg text-indigo mb-3">
-                    사주 간략 해석
-                  </h3>
-                  <p className="text-gray-700 mb-6 leading-relaxed">
-                    귀하의 사주는 {sajuResult.ohaeng} 오행과 {sajuResult.sipsin}{" "}
-                    십신을 중심으로 구성되어 있습니다. 이는 창의적이고 예술적인
-                    기질을 가진 사람으로, 새로운 아이디어를 생각해내는 능력이
-                    뛰어난 것을 의미합니다. 감성이 풍부하고 열정적인 성향으로,
-                    주변 사람들에게 긍정적인 영향을 주는 특성이 있습니다.
+              </h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-2 text-indigo">
+                    나의 오행
+                  </h4>
+                  <p className="text-2xl font-bold mb-2">
+                    {result?.result.ohaeng || "화(火)"}
+                  </p>
+                  <p className="text-gray-600">
+                    오행은 동양 철학에서 우주의 기본 요소를 나타내는 개념으로,
+                    개인의 성격과 에너지 특성을 이해하는 데 도움이 됩니다.
                   </p>
                 </div>
-              )}
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-2 text-indigo">
+                    나의 십신
+                  </h4>
+                  <p className="text-2xl font-bold mb-2">
+                    {result?.result.sipsin || "식신(食神)"}
+                  </p>
+                  <p className="text-gray-600">
+                    십신은 사주에서 개인의 기본 성향과 삶의 흐름을 나타내는
+                    요소로, 인생의 방향성을 제시합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-              {activeTab === "personality" && (
-                <div className="animate-fade-in">
-                  <div className="mb-8">
-                    <h3 className="font-medium text-lg text-indigo mb-4">
-                      성격 및 특성
-                    </h3>
-                    <ul className="space-y-3">
-                      {sajuResult.personality.map((item, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-indigo mr-2">•</span>
-                          <span className="text-gray-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mb-8">
-                    <h3 className="font-medium text-lg text-indigo mb-4">
-                      직업 및 진로
-                    </h3>
-                    <ul className="space-y-3">
-                      {sajuResult.career.map((item, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-indigo mr-2">•</span>
-                          <span className="text-gray-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-medium text-lg text-indigo mb-4">
-                      연애 및 대인관계
-                    </h3>
-                    <ul className="space-y-3">
-                      {sajuResult.relationship.map((item, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="text-indigo mr-2">•</span>
-                          <span className="text-gray-700">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+            <div className="bg-gradient-to-r from-indigo/5 to-lavender/5 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-indigo">
+                만세력 정보
+              </h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-3 text-indigo">
+                    날짜 정보
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">양력:</span>
+                      <span className="font-medium">
+                        {result?.input_info.year}년 {result?.input_info.month}월{" "}
+                        {result?.input_info.day}일
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">음력:</span>
+                      <span className="font-medium">
+                        {result?.result.lunar_date || "정보 없음"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">요일:</span>
+                      <span className="font-medium">
+                        {result?.result.day_of_week || "정보 없음"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {activeTab === "yearly" && (
-                <div className="animate-fade-in">
-                  <h3 className="font-medium text-lg text-indigo mb-4">
-                    연도별 운세
-                  </h3>
-
-                  <div className="space-y-6">
-                    {sajuResult.yearly.map((item, index) => (
-                      <div
-                        key={index}
-                        className="bg-lavender/20 p-4 rounded-lg"
-                      >
-                        <h4 className="font-semibold text-indigo mb-2">
-                          {item.year}년
-                        </h4>
-                        <p className="text-gray-700">{item.description}</p>
-                      </div>
-                    ))}
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-3 text-indigo">
+                    천문 정보
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">별자리:</span>
+                      <span className="font-medium">
+                        {result?.result.zodiac_sign || "정보 없음"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">달의 위상:</span>
+                      <span className="font-medium">
+                        {result?.result.moon_phase || "정보 없음"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">달의 크기:</span>
+                      <span className="font-medium">
+                        {result?.result.month_size || "정보 없음"}일
+                      </span>
+                    </div>
                   </div>
                 </div>
-              )}
+
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-3 text-indigo">
+                    절기와 명절
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">절기:</span>
+                      <span className="font-medium">
+                        {result?.result.seasonal_term || "정보 없음"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">띠:</span>
+                      <span className="font-medium">
+                        {result?.result.zodiac_animal || "정보 없음"}띠
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-indigo/5 to-lavender/5 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-indigo">
+                플래너 정보
+              </h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-3 text-indigo">
+                    양력 플래너
+                  </h4>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {result?.result.solar_plan_info ||
+                      "플래너 정보가 없습니다."}
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <h4 className="font-medium text-lg mb-3 text-indigo">
+                    음력 플래너
+                  </h4>
+                  <p className="text-gray-700 whitespace-pre-line">
+                    {result?.result.lunar_plan_info ||
+                      "플래너 정보가 없습니다."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-indigo/5 to-lavender/5 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-indigo">
+                사주 간략 해석
+              </h3>
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <p className="text-gray-700 leading-relaxed">
+                  {result?.result.analysis ||
+                    "귀하의 사주는 화(火) 오행과 식신(食神) 십신을 중심으로 구성되어 있습니다. 이는 창의적이고 예술적인 기질을 가진 사람으로, 새로운 아이디어를 생각해내는 능력이 뛰어난 것을 의미합니다. 감성이 풍부하고 열정적인 성향으로, 주변 사람들에게 긍정적인 영향을 주는 특성이 있습니다."}
+                </p>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
         {!user && (
           <div className="bg-lavender/20 p-4 rounded-lg text-center mb-8">
@@ -569,7 +536,7 @@ const SajuResult = () => {
           <button
             onClick={handleDownloadReport}
             className="flex items-center gap-2 primary-button disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading || !sajuResult}
+            disabled={loading || !result}
           >
             <Download size={20} />
             상세 리포트 다운로드
@@ -578,7 +545,7 @@ const SajuResult = () => {
           <button
             onClick={handleOpenChat}
             className="flex items-center gap-2 primary-button disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading || !sajuResult}
+            disabled={loading || !result}
           >
             <MessageSquare size={20} />
             AI 상담사와 대화하기
