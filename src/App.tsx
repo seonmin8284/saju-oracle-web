@@ -23,7 +23,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/saju-input" replace />} />
+            <Route path="/" element={<SajuInput />} />
             <Route path="/fortune" element={<Fortune />} />
             {/* <Route path="/celebrities" element={<Celebrities />} /> */}
             <Route path="/saju-input" element={<SajuInput />} />
