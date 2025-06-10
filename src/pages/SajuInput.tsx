@@ -7,9 +7,13 @@ import {
   saveSajuResult,
   saveSajuToSessionStorage,
   SajuFormData,
-} from "../services/SajuService";
+} from "../services/sajuService";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
+import {
+  getSajuFromSessionStorage,
+  getSajuResult,
+} from "../services/sajuService";
 
 interface ApiResponse {
   year: string;

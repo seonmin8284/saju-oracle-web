@@ -6,14 +6,14 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   getSajuFromSessionStorage,
   getSajuResult,
-} from "../services/SajuService";
+  SajuFormData,
+} from "../services/sajuService";
 import { toast } from "@/hooks/use-toast";
 import PaymentDialog from "@/components/PaymentDialog";
 import { createPaymentRequest } from "@/services/paymentService";
 import { PAYMENT_PRODUCTS } from "@/lib/constants";
 import SajuTable from "@/components/SajuTable";
 import axios from "axios";
-import { SajuFormData } from "../services/SajuService";
 
 type FormData = {
   birthYear: number;
